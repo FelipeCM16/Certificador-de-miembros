@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Miembros - Academias Científicas</title>
-    <!-- Cargamos la librería SheetJS para leer archivos Excel (.xlsx) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -176,13 +175,11 @@
 <div class="container">
     <h1>Portal de Acreditación Científica</h1>
 
-    <!-- Pestañas de Navegación -->
     <div class="tabs">
         <button id="btn-user-tab" class="tab-btn active" onclick="switchTab('user-view')">Consulta de Miembros</button>
         <button id="btn-admin-tab" class="tab-btn" onclick="switchTab('admin-view')">Panel Administrador</button>
     </div>
 
-    <!-- VISTA USUARIO NORMAL -->
     <div id="user-view" class="tab-content active">
         <div class="form-group">
             <label for="search-rut">Ingrese RUT del miembro (con puntos y guión, ej: 12.345.678-9):</label>
@@ -193,7 +190,6 @@
         <div id="search-result" class="result-box"></div>
     </div>
 
-    <!-- VISTA ADMINISTRADOR -->
     <div id="admin-view" class="tab-content">
         <h3>Carga Masiva vía Excel (.xlsx)</h3>
         <p style="font-size: 13px; color: #6b7280; margin-top: -10px;">
@@ -234,8 +230,8 @@
 </div>
 
 <script>
-    // URL final vinculada a la aplicación web del Google Apps Script suministrada
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0F04Tghp_WGqjwmFDPgyD9f4JazYqdfBHXPRVVge1RzRB1Eoqr0BAASgXhsSZpjBBzA/exec";
+    // URL final actualizada y vinculada a la aplicación web del Google Apps Script suministrada
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQtAkPn92lACrSHT_TrpGXEbxUXhhrG5VjlEND7EBgwzYkf4u97JoHuBf34ANG5GXZOg/exec";
 
     // Manejo del sistema de pestañas protegido por contraseña corporativa
     function switchTab(tabId) {
@@ -295,7 +291,16 @@
 
         try {
             const response = await fetch(GOOGLE_SCRIPT_URL);
+            
+            if (!response.ok) {
+                throw new Error("HTTP status " + response.status);
+            }
+            
             const db = await response.json();
+            
+            if (db.status === "error") {
+                throw new Error(db.message);
+            }
 
             const miembroEncontrado = db.find(m => String(m.rut).trim() === rutBuscado);
             resultBox.style.display = 'block';
@@ -322,7 +327,7 @@
             console.error(error);
             resultBox.style.display = 'block';
             resultBox.classList.add('error');
-            resultBox.innerHTML = `<h3>Error de conexión</h3><p>Ocurrió un problema al leer la planilla en la nube. Por favor verifique el estado del conector de Google Drive.</p>`;
+            resultBox.innerHTML = `<h3>Error de conexión</h3><p>Detalle técnico: ${error.message}. Asegúrese de que la pestaña de Sheets se llame "miembros" y la web app esté autorizada.</p>`;
         } finally {
             btnBuscar.disabled = false;
             btnBuscar.innerText = "Verificar Pertenencia";
@@ -348,7 +353,7 @@
         try {
             const checkRes = await fetch(GOOGLE_SCRIPT_URL);
             const currentDb = await checkRes.json();
-            if (currentDb.some(m => String(m.rut).trim() === rut)) {
+            if (currentDb && Array.isArray(currentDb) && currentDb.some(m => String(m.rut).trim() === rut)) {
                 alert('Este RUT ya se encuentra registrado en la planilla.');
                 return;
             }
@@ -360,7 +365,7 @@
                 body: JSON.stringify({ nombre, rut, correo, academia })
             });
 
-            alert('¡Miembro guardado en Google Sheets con éxito!');
+            alert('¡Miembro guardado en Google Sheets con éxito! Verifique su planilla en un instante.');
             document.getElementById('manual-nombre').value = '';
             document.getElementById('manual-rut').value = '';
             document.getElementById('manual-correo').value = '';
@@ -433,7 +438,7 @@
                 });
 
                 statusDiv.style.color = 'var(--success-color)';
-                statusDiv.innerText = `¡Procesado! Se enviaron las filas del Excel a Google Sheets. (El Script de Google se encargará en Drive de omitir automáticamente los RUTs que ya existan).`;
+                statusDiv.innerText = `¡Procesado! Se despachó el lote a Google Sheets. Drive filtrará automáticamente ruts preexistentes.`;
                 fileInput.value = '';
 
             } catch (error) {
